@@ -1,7 +1,10 @@
 import urllib.request
 from bs4 import BeautifulSoup
 import pandas as pd
-import collections as co
+import psycopg2
+import sys
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from sqlalchemy import create_engine
 
 # URL to the required web page
 ttc = "http://www.ttc.ca/Customer_Service/Daily_Customer_Service_Report/index.jsp"
@@ -30,7 +33,7 @@ for head in right_table.findAll("thead"):
     for i in cells:
         header.append(i.find(text=True))
 del header[0]
-print(header)
+# print(header)
 
 t_val = []
 for rows in right_table.findAll('tbody'):
@@ -60,4 +63,33 @@ for out in range(8):
 
 
 df = pd.DataFrame.from_records(row_vals, columns=header)
-print(df)
+# print(df)
+
+try:
+    con = psycopg2.connect("dbname=interview host=localhost user=postgres password=Dhanyatha")
+except Exception as e:
+    print(e)
+# con.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+cur = con.cursor()
+
+try:
+    cur.execute('CREATE TABLE ttc ()')
+except Exception as e:
+    print(e)
+
+# cur.close()
+con.commit()
+
+url = 'postgresql://postgres:Dhanyatha@localhost:5432/interview'
+engine = create_engine(url, pool_pre_ping=True)
+try:
+    df.to_sql("ttc", con=engine, if_exists='append')
+except Exception as e:
+    print(e)
+
+check = pd.read_sql_table("ttc", con=engine)
+print(check)
+
+
+cur.close()
+con.close()
