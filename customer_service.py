@@ -3,93 +3,89 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import psycopg2
 import sys
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy import create_engine
 
 # URL to the required web page
 ttc = "http://www.ttc.ca/Customer_Service/Daily_Customer_Service_Report/index.jsp"
 
-# Query the website and return the HTML to the variable page
+# Query the website and return the HTML to the variable 'page'
 page = urllib.request.urlopen(ttc)
 
 # Parse the HTML in the page variable and store it in BeautifulSoup format
 soup = BeautifulSoup(page, "html.parser")
 
-# Print the HTML file that is parsed
-# print(soup.prettify())
-
-all_tables = soup.find_all('table')
-
-# for table in all_tables:
-#     print(table)
-
+# Pick the table that has to be parsed using the class name of the table
 right_table = soup.find('table', class_='ttc-customer-service-table')
-# print(right_table)
 
-# Generate lists
-header=[]
+# Create and update a list called 'header' to save the column names of the table
+header = []
 for head in right_table.findAll("thead"):
     cells = head.findAll('th')
-    for i in cells:
-        header.append(i.find(text=True))
+    for c_head in cells:
+        header.append(c_head.find(text=True))
 del header[0]
-# print(header)
 
+# Create and update a list called 't_val' to save the column values of the table
 t_val = []
 for rows in right_table.findAll('tbody'):
     values = rows.findAll('td')
-    for i in values:
-        if i.find('img'):
-            a = i.findAll(text=False)
-            a = str(a).split('"')[1]
-            if (a == "pass") or (a == "fail"):
-                t_val.append(a)
+    for c_vals in values:
+        if c_vals.find('img'):
+            result = c_vals.findAll(text=False)
+            result = str(result).split('"')[1]
+            if (result == "pass") or (result == "fail"):
+                t_val.append(result)
         else:
-            t_val.append(i.findAll(text=True))
+            t_val.append(c_vals.findAll(text=True))
 
-# print(t_val)
+# Sort each row values and put them in a tuple so as to put them in a DataFrame
 row_vals = []
 start = 0
 end = 5
-n = 0
-for out in range(8):
+for loop in range(8):
     del t_val[(start+1)][1]
     tup = tuple(t_val[start:end])
-    # print(tup)
     row_vals.append(tup)
     start = end
     end = end + 5
-    n = n + 1
 
-
+# Save the table data in DataFrame 'df'
 df = pd.DataFrame.from_records(row_vals, columns=header)
-# print(df)
 
+# Connect to a Database name 'interview_test'
 try:
-    con = psycopg2.connect("dbname=interview host=localhost user=postgres password=Dhanyatha")
-except Exception as e:
-    print(e)
-# con.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+    con = psycopg2.connect("dbname=interview_test host=localhost user=postgres password=Dhanyatha")
+except Exception:
+    pass
+
+# Create a cursor for the connection for data manipulation
 cur = con.cursor()
 
+# Create a table "TTC_CSR"
 try:
-    cur.execute('CREATE TABLE ttc ()')
-except Exception as e:
-    print(e)
+    cur.execute('CREATE TABLE TTC_CSR ()')
+except Exception:
+    pass
 
-# cur.close()
+# Commit the changes made to the table
 con.commit()
 
-url = 'postgresql://postgres:Dhanyatha@localhost:5432/interview'
+# Create and engine to enable the DataFrame to be pushed to DataBase
+url = 'postgresql://postgres:Dhanyatha@localhost:5432/interview_test'
 engine = create_engine(url, pool_pre_ping=True)
+
+# Push the table data into PostgreSQL Database
 try:
-    df.to_sql("ttc", con=engine, if_exists='append')
-except Exception as e:
-    print(e)
+    df.to_sql("TTC_CSR", con=engine, if_exists='append')
+except Exception:
+    pass
 
-check = pd.read_sql_table("ttc", con=engine)
-print(check)
+# Read back the table from DataBase into DataFrame and save it in "check" object
+check = pd.read_sql_table("TTC_CSR", con=engine)
 
+# Print the data from Database for verification
+# print(check)
 
+# Close the connection
 cur.close()
 con.close()
