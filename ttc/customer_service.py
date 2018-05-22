@@ -35,8 +35,9 @@ try:
     for head in right_table.findAll("thead"):
         cells = head.findAll('th')
         for c_head in cells:
-            header.append(c_head.find(text=True))
+            header.append(c_head.find(text=True).replace(':','').strip())
     del header[0]
+    header.insert(0,'Date')
 except Exception as header_error:
     print("An exception occurred while fetching the column names and the exception is ", header_error)
 
@@ -45,9 +46,12 @@ except Exception as header_error:
 try:
     t_val = []
     row_vals = []
+    time_list = soup.find_all('p')[2].get_text().split(', ')
+    time_string = ' '.join({time_list[1], time_list[2]})
     for rows in right_table.findAll('tbody'):
         row=rows.findAll('tr')
         for cells in row:
+            t_val.append(time_string)
             values = cells.findAll('td')
             for c_vals in values:
                 if c_vals.find('img'):
@@ -56,7 +60,7 @@ try:
                     if (result == "pass") or (result == "fail"):
                         t_val.append(result)
                 else:
-                    t_val.append(c_vals.findAll(text=True)[:1])
+                    t_val.append((str(c_vals.findAll(text=True)[0])).replace('%',''))#c_vals.findAll(text=True)[:1]
             row_vals.append(tuple(t_val))
             t_val.clear()
 except Exception as value_error:
@@ -65,6 +69,9 @@ except Exception as value_error:
 # Save the table data in DataFrame 'df'
 try:
     df = pd.DataFrame.from_records(row_vals, columns=header)
+    # perform data cleaning
+    for col in df.columns:
+        df[col] = df[col].map(lambda x: x.strip())
 except Exception as dataframe_error:
     print("An exception occurred while creating a DataFrame and the exception is ", dataframe_error)
 
@@ -90,7 +97,7 @@ con.commit()
 # Create and engine to enable the DataFrame to be pushed to DataBase
 try:
     url = 'postgresql://postgres:Dhanyatha@localhost:5432/interview_test'
-    engine = create_engine(url, pool_pre_ping=True)
+    engine = create_engine(url)#, pool_pre_ping=True)
 except Exception as engine_error:
     print("An exception occurred while creating an engine and the exception is ", engine_error)
 
