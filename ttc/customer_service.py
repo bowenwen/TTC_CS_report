@@ -40,40 +40,27 @@ try:
 except Exception as header_error:
     print("An exception occurred while fetching the column names and the exception is ", header_error)
 
-# Create and update a list called 't_val' to save the column values of the table
+# Create and update a list called 'row_vals' to save the row values of the table
 # by iterating through every row and every cell of the table
 try:
     t_val = []
+    row_vals = []
     for rows in right_table.findAll('tbody'):
-        values = rows.findAll('td')
-        for c_vals in values:
-            if c_vals.find('img'):
-                result = c_vals.findAll(text=False)
-                result = str(result).split('"')[1]
-                if (result == "pass") or (result == "fail"):
-                    t_val.append(result)
-            else:
-                t_val.append(c_vals.findAll(text=True))
+        row=rows.findAll('tr')
+        for cells in row:
+            values = cells.findAll('td')
+            for c_vals in values:
+                if c_vals.find('img'):
+                    result = c_vals.findAll(text=False)
+                    result = str(result).split('"')[1]
+                    if (result == "pass") or (result == "fail"):
+                        t_val.append(result)
+                else:
+                    t_val.append(c_vals.findAll(text=True)[:1])
+            row_vals.append(tuple(t_val))
+            t_val.clear()
 except Exception as value_error:
     print("An exception occurred while fetching all the values from a table and the exception is ", value_error)
-
-# Fetch the number of rows and columns in the table
-number_of_rows = len(right_table.findAll('tr'))-1
-number_of_columns = len(header)
-
-# Sort each row values and put them in a tuple so as to put them in a DataFrame
-try:
-    row_vals = []
-    start = 0
-    end = number_of_columns
-    for loop in range((number_of_rows)):
-        del t_val[(start+1)][1]
-        tup = tuple(t_val[start:end])
-        row_vals.append(tup)
-        start = end
-        end = end + number_of_columns
-except Exception as rows_error:
-    print("An exception occurred while sorting all the values of the table into rows and the exception is ", rows_error)
 
 # Save the table data in DataFrame 'df'
 try:
@@ -121,7 +108,7 @@ except Exception as db_df_error:
           db_df_error)
 
 # Print the data from Database for verification
-# print(check)
+print(check)
 
 # Close the connection
 cur.close()
